@@ -17,4 +17,8 @@ public class Coord : System.Object {
 			return false;
 		}
 	}
+
+	override public string ToString() {
+		return "X: " + x + ", Y: " + y;
+	}
 }

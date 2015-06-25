@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Board : MonoBehaviour {
 	bool initialized = false;
@@ -53,27 +54,83 @@ public class Board : MonoBehaviour {
 		counters[3].GetComponent<UnityEngine.UI.Text>().text = ": " + gjNum;
 	}
 
-	// TODO: Check to see if moving is allowed and if it creates a match-3.
-	public bool CheckRules(int type, int xCoord, int yCoord) {
+	private bool isSettled() {
+		for(int i = 0; i<Board.SIZE; i++) {
+			for (int j = 0; j<Board.SIZE; j++) {
+				if(!boardTiles[i,j].settled) return false;
+			}
+		}
 		return true;
 	}
 
-	// TODO: Change to find match-3
-	int FindNeighbors(int type, int xCoord, int yCoord) {
-		int numNeighbors = 0;
-		for(int i = -2; i<=2; i++) {
-			if(i+xCoord>=0&&i+xCoord<=Board.SIZE) {
-				if(boardTiles[i+xCoord, yCoord].type==type && i!=0) {
-					numNeighbors++;
-				}
+	// Check to see if moving creates a match-3.
+	public bool CheckMove(Coord first, Coord second) {
+		if(((first.x-second.x==1 || first.x-second.x==-1) && first.y == second.y) || ((first.y-second.y==1 || first.y-second.y==-1) && first.x == second.x)) {
+			Coord[] possible = FindMatch(boardTiles[first.x, first.y].type, first.x, first.y);
+			if(possible.Length>0) {
+				return true;
+			} else if (FindMatch(boardTiles[second.x, second.y].type, second.x, second.y).Length>0) {
+				return true;
+			} else {
+				return false;
 			}
-			if (i+yCoord>=0&&i+yCoord<=Board.SIZE) {
-				if(boardTiles[xCoord, i+yCoord].type==type && i!=0) {
-					numNeighbors++;
-				}
+		} else 
+			return false;
+	}
+
+	public bool TestMatch(int type, Coord cd) {
+		Coord[] cool = FindMatch(type, cd.x, cd.y);
+		return MakeMatch(cool);
+	}
+
+	public Coord[] FindMatch(int type, int xCoord, int yCoord) {
+		List<Coord> matches = new List<Coord>();
+		bool xSetup = false;
+		bool ySetup = false;
+		for(int i = -2; i<=2; i++) {
+			if(i+xCoord>=0&&i+xCoord<Board.SIZE && i!=0) {
+				if(boardTiles[i+xCoord, yCoord].type==type && !xSetup) {
+					xSetup = true;
+				} else if(boardTiles[i+xCoord, yCoord].type==type) {
+					if(i!=1)
+						matches.Add(new Coord(i-1+xCoord, yCoord));
+					else
+						matches.Add(new Coord(i-2+xCoord, yCoord));
+					matches.Add(new Coord(i+xCoord, yCoord));
+				} else xSetup = false;
+			}
+			if (i+yCoord>=0&&i+yCoord<Board.SIZE && i!=0) {
+				if(boardTiles[xCoord, i+yCoord].type==type && i!=0 && !ySetup) {
+					ySetup = true;
+				} else if(boardTiles[xCoord, i+yCoord].type==type && i!=0) {
+					if(i!=1)
+						matches.Add(new Coord(xCoord, i-1+yCoord));
+					else
+						matches.Add(new Coord(xCoord, i-2+yCoord));
+					matches.Add(new Coord(xCoord, i+yCoord));
+				} else ySetup = false;
+			}
+			if(matches.Count>0) matches.Add(new Coord(xCoord, yCoord));
+		}
+		return matches.ToArray();
+	}
+
+	private bool MakeMatch(Coord[] matches) {
+		for(int i = 0; i<matches.Length; i++) {
+			if(!boardTiles[matches[i].x, matches[i].y].Match()) return false;
+			DisplayBoard();
+		}
+		return true;
+	}
+
+	public void FindMatchButton() {
+		for (int i = 0; i<Board.SIZE; i++) {
+			for (int j = 0; j<Board.SIZE; j++) {
+				Coord[] cool = FindMatch(boardTiles[i,j].type, i, j);
+				print("At " + i + ", " + j + ": " + FindMatch(boardTiles[i,j].type, i, j).Length);
+				MakeMatch(cool);
 			}
 		}
-		return numNeighbors;
 	}
 
 	public void DisplayBoard() {
@@ -81,26 +138,7 @@ public class Board : MonoBehaviour {
 		for(int i = 0; i<Board.SIZE; i++) {
 			for (int j = 0; j<Board.SIZE; j++) {
 				boardTiles[i, j].gameObject.transform.position = boardTiles[i,j].gameObject.transform.parent.position + new Vector3(Tile.TILESIZE * i - (Board.SIZE*Tile.TILESIZE/2), -1 * Tile.TILESIZE * j + (Board.SIZE*Tile.TILESIZE/2), 0);
-				switch(boardTiles[i,j].type) {
-				case 0:
-					boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = tiles[0];
-					break;
-				case 1:
-					boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = tiles[1];
-					break;
-				case 2:
-					boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = tiles[2];
-					break;
-				case 3:
-					boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = tiles[3];
-					break;
-				case 4:
-					boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = tiles[4];
-					break;
-				default:
-					boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = emptyTile;
-					break;
-				}
+				boardTiles[i,j].gameObject.GetComponent<SpriteRenderer>().sprite = tiles[boardTiles[i,j].type];
 			}
 		}
 	}
